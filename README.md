@@ -101,9 +101,13 @@ ESP32-Stepper-Controller
 ---
 
 ## **Build System Picture**
-![Build System Picture](https://via.placeholder.com/600x400)  
-*Insert an image of your build system here.*
 
+<p align="center">
+  <img src="Documentation/Pictures/housingClosed.png" alt="Closed Housing" width="45%" />
+  <img src="Documentation/Pictures/housingOpen.png" alt="Open Housing" width="45%" />
+</p>
+
+*Left: Closed housing. Right: Open housing with components visible.*
 ---
 
 ## **Video Demonstration**
