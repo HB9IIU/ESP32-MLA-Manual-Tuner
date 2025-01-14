@@ -1,0 +1,179 @@
+#include <Arduino.h>
+
+/*
+ * Encoder, LED's and Touch Sensor Test Script
+ * Author: HB9IIU
+ *
+ * Purpose:
+ * This script is designed to test the functionality of an encoder, a touch sensor,
+ * and status LEDs for a remote stepper motor control system.
+ *
+ * Features:
+ * - Tracks encoder rotation using interrupts.
+ * - Toggles status LEDs based on encoder value or touch sensor input.
+ * - Provides real-time feedback via serial output.
+ * - Flickers LEDs in a cycle when the encoder is rotated.
+ * - Cycles LEDs left-to-right for clockwise rotation and right-to-left for counterclockwise rotation.
+ *
+ * Connections:
+ * - LED Status (ledStatus): Connect positive leg of LED to pin 27 through a 220Ω resistor.
+ * - LED Fine (ledFine): Connect positive leg of LED to pin 14 through a 220Ω resistor.
+ * - LED Normal (ledNormal): Connect positive leg of LED to pin 12 through a 220Ω resistor.
+ * - LED Fast (ledFast): Connect positive leg of LED to pin 13 through a 220Ω resistor.
+ * - Encoder:
+ *   - Terminal A: Connect to GPIO 32.
+ *   - Terminal B: Connect to GPIO 33.
+ *   - Terminal 0V: Connect to GND.
+ *   - Terminal Vcc: Connect to 3.3V (works reliably despite specifications stating 5V).
+ * - Touch Sensor (touchPin): Connect the output of the TTP223 touch sensor to pin 39. 
+ *   Power the TTP223 by connecting its VCC to 3.3V and GND to ground.
+ *
+ * Encoder Specifications:
+ * - Outputs 100 impulses per full turn.
+ * - Delivers quadrature signals (A and B) for direction and position tracking.
+ * - Tested to work reliably with ESP32 at 3.3V, despite specs indicating 5V.
+ * - Ensure proper alignment during installation to prevent damage (e.g., use elastic couplings).
+ *
+ * TTP223 Touch Sensor:
+ * - The TTP223 is a capacitive touch sensor that outputs HIGH when touched.
+ * - Physical touch is not necessary to trigger the sensor; it can detect proximity.
+ * - This makes it ideal for embedding into 3D-printed enclosures where a physical button is not desired.
+ */
+
+const int ledStatus = 27;
+const int ledFine = 14;
+const int ledNormal = 12;
+const int ledFast = 13;
+const int encoderPinA = 32;
+const int encoderPinB = 33;
+const int touchPin = 39;
+
+volatile int encoderValue = 0;
+volatile int lastEncoded = 0;
+int lastTouchStatus = -1;
+
+void IRAM_ATTR updateEncoder() {
+  int MSB = digitalRead(encoderPinA);
+  int LSB = digitalRead(encoderPinB);
+  int encoded = (MSB << 1) | LSB;
+  int sum = (lastEncoded << 2) | encoded;
+
+  if (sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011) encoderValue++;
+  if (sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000) encoderValue--;
+
+  lastEncoded = encoded;
+}
+
+void flickerLEDCycle(int times, int duration, bool clockwise) {
+  int leds[] = {ledStatus, ledFine, ledNormal, ledFast};
+  int numLeds = sizeof(leds) / sizeof(leds[0]);
+
+  for (int i = 0; i < times; i++) {
+    if (clockwise) {
+      for (int j = 0; j < numLeds; j++) {
+        digitalWrite(leds[j], HIGH);
+        delay(duration);
+        digitalWrite(leds[j], LOW);
+      }
+    } else {
+      for (int j = numLeds - 1; j >= 0; j--) {
+        digitalWrite(leds[j], HIGH);
+        delay(duration);
+        digitalWrite(leds[j], LOW);
+      }
+    }
+  }
+}
+
+void testLED(bool status) {
+  digitalWrite(ledStatus, status);
+  digitalWrite(ledFine, status);
+  digitalWrite(ledNormal, status);
+  digitalWrite(ledFast, status);
+}
+
+void loopLED() {
+  Serial.println("Testing LEDs...");
+  int t = 100;
+
+  for (int i = 0; i < 3; i++) {
+    digitalWrite(ledStatus, HIGH);
+    delay(t);
+    digitalWrite(ledStatus, LOW);
+    delay(t);
+    digitalWrite(ledFine, HIGH);
+    delay(t);
+    digitalWrite(ledFine, LOW);
+    delay(t);
+    digitalWrite(ledNormal, HIGH);
+    delay(t);
+    digitalWrite(ledNormal, LOW);
+    delay(t);
+    digitalWrite(ledFast, HIGH);
+    delay(t);
+    digitalWrite(ledFast, LOW);
+    delay(t);
+  }
+
+  Serial.println("LED test complete.");
+}
+
+void setup() {
+  // Initialize LEDs
+  pinMode(ledStatus, OUTPUT);
+  pinMode(ledFine, OUTPUT);
+  pinMode(ledNormal, OUTPUT);
+  pinMode(ledFast, OUTPUT);
+
+  // Initialize encoder pins
+  pinMode(encoderPinA, INPUT);
+  pinMode(encoderPinB, INPUT);
+
+  // Initialize touch sensor
+  pinMode(touchPin, INPUT);
+
+  // Attach interrupts
+  attachInterrupt(digitalPinToInterrupt(encoderPinA), updateEncoder, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(encoderPinB), updateEncoder, CHANGE);
+
+  // Start serial communication
+  Serial.begin(115200);
+  delay(500);
+
+  // Startup sequence
+  Serial.println("Initializing system...");
+  loopLED();
+  Serial.println("Initialization complete.");
+}
+
+void loop() {
+  static int lastPrintedValue = 0;
+
+  // Print encoder value if it changes and flicker LEDs in a cycle
+  if (lastPrintedValue != encoderValue) {
+    Serial.print("Encoder Value: ");
+    Serial.println(encoderValue);
+
+    // Determine direction and flicker LEDs accordingly
+    bool clockwise = (encoderValue > lastPrintedValue);
+    flickerLEDCycle(2, 50, clockwise);
+
+    lastPrintedValue = encoderValue;
+  }
+
+  // Check touch sensor
+  int touchStatus = digitalRead(touchPin);
+  if (touchStatus != lastTouchStatus) {
+    Serial.print("Touch Sensor Status: ");
+    if (touchStatus == HIGH) {
+      Serial.println("TOUCHED");
+      testLED(true);
+    } else {
+      Serial.println("NOT TOUCHED");
+      testLED(false);
+    }
+    lastTouchStatus = touchStatus;
+  }
+
+  delay(100);
+}

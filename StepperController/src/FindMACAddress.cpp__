@@ -1,0 +1,75 @@
+#include <WiFi.h>
+
+/*
+ * FindMACAddress.cpp
+ * Author: HB9IIU
+ *
+ * Purpose:
+ * This sketch helps you find the MAC address of your ESP32 device.
+ * Use this MAC address in other sketches for ESP-NOW communication.
+ *
+ * Instructions:
+ * 1. Upload this sketch to the ESP32 you want to use as the RECEIVER (the one controlling the stepper motor).
+ * 2. Copy the MAC address displayed in the Serial Monitor.
+ * 3. Use the provided MAC address in the SENDER sketch to establish ESP-NOW communication.
+ *
+ * Why is the MAC address needed?
+ * - ESP-NOW uses the MAC address of the receiver to send data directly, bypassing the need for a Wi-Fi network.
+ * - This ensures low-latency communication, ideal for real-time applications like stepper motor control.
+ */
+
+void printSystemInfo() {
+    // Print ESP32 system and chip information
+    esp_chip_info_t chip_info;
+    esp_chip_info(&chip_info);
+
+    Serial.println("\n=== ESP32 System Information ===");
+    Serial.printf("Chip Model: ESP32\n");
+    Serial.printf("Revision: %d\n", chip_info.revision);
+    Serial.printf("Cores: %d\n", chip_info.cores);
+    Serial.printf("Features: %s%s%s\n",
+                  chip_info.features & CHIP_FEATURE_WIFI_BGN ? "WiFi " : "",
+                  chip_info.features & CHIP_FEATURE_BLE ? "BLE " : "",
+                  chip_info.features & CHIP_FEATURE_BT ? "Bluetooth Classic" : "");
+    Serial.printf("Flash Size: %d MB\n", spi_flash_get_chip_size() / (1024 * 1024));
+    Serial.println("===============================");
+}
+
+void setup() {
+    // Start serial communication
+    Serial.begin(115200);
+    delay(1000); // Allow time for the Serial Monitor to connect
+
+    // Print system information
+    printSystemInfo();
+
+    // Initialize WiFi in Station mode
+    WiFi.mode(WIFI_STA);
+
+    // Get the MAC address
+    String macAddress = WiFi.macAddress();
+
+    // Print the MAC address in multiple formats
+    Serial.println("\n=== ESP32 MAC Address ===");
+    Serial.println(macAddress);
+
+    // Provide the formatted code for use in the sender sketch
+    Serial.println("\nCopy the following line and use it in the SENDER sketch at line n° +/- 40:");
+    Serial.println("");
+    Serial.println("------------------------------------------------------------------------------------------");
+    Serial.print("const uint8_t receiverMAC[] = {");
+
+    // Format and print each byte of the MAC address in hexadecimal format
+    for (int i = 0; i < macAddress.length(); i += 3) {
+        Serial.printf("0x%s", macAddress.substring(i, i + 2).c_str());
+        if (i + 3 < macAddress.length()) Serial.print(", ");
+    }
+
+    Serial.println("}; // Your receiver's MAC");
+    Serial.println("------------------------------------------------------------------------------------------");
+
+}
+
+void loop() {
+    // Nothing to do here
+}

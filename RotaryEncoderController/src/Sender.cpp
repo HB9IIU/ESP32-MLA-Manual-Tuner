@@ -1,0 +1,270 @@
+#include <esp_now.h>
+#include <WiFi.h>
+#include <esp_wifi.h> // Required for esp_wifi_set_channel and esp_wifi_set_promiscuous
+
+/*
+ * Sender.cpp - ESP-NOW Encoder-based Remote Control for Stepper Motor
+ * Author: HB9IIU
+ *
+ * Purpose:
+ * This program reads an encoder's rotation and sends step deltas to a receiver ESP32 via ESP-NOW.
+ * It also provides user feedback through LEDs and a touch sensor for mode selection.
+ *
+ * Features:
+ * 1. Reads encoder input and calculates the delta.
+ * 2. Sends deltas to the receiver ESP32 for stepper motor control.
+ * 3. Allows switching between "Fine", "Normal", and "Fast" modes using a touch sensor.
+ * 4. Provides status indication using LEDs:
+ *    - Status LED blinks to indicate connection status.
+ *    - Mode LEDs indicate the selected mode.
+ *
+ * Connections:
+ * - Encoder Output A: GPIO32 (encoderPinA)
+ * - Encoder Output B: GPIO33 (encoderPinB)
+ * - Touch Sensor: GPIO39 (touchPin)
+ * - Status LED: GPIO27 (ledStatus)
+ * - Mode LEDs:
+ *   - Fine Mode: GPIO14 (ledFine)
+ *   - Normal Mode: GPIO12 (ledNormal)
+ *   - Fast Mode: GPIO13 (ledFast)
+ *
+ * Notes for Beginners:
+ * - The receiver ESP32's MAC address must be added to the `receiverMAC` variable.
+ * - Use the provided FindMACAddress.cpp sketch to find the MAC address of the receiver ESP32.
+ * - Ensure the receiver ESP32 is powered on and running the appropriate receiver code.
+ */
+
+const uint8_t receiverMAC[] = {0xA8, 0x42, 0xE3, 0x4B, 0x0E, 0xF0}; // Replace with actual receiver MAC
+const int encoderPinA = 32;
+const int encoderPinB = 33;
+const int touchPin = 39;
+const int ledStatus = 27;
+const int ledFine = 14;
+const int ledNormal = 12;
+const int ledFast = 13;
+
+const int fineMultiplier = 1;
+const int normalMultiplier = 8;
+const int fastMultiplier = 16;
+
+enum Mode
+{
+    FINE,
+    NORMAL,
+    FAST
+};
+Mode currentMode = FINE;
+
+typedef struct
+{
+    int encoderDelta;
+} Message;
+
+Message data;
+volatile int encoderValue = 0;
+volatile int lastEncoderValue = 0;
+volatile int lastEncoded = 0;
+int lastTouchState = LOW;
+bool connectionOK = false;
+unsigned long lastTouchTime = 0;
+const unsigned long debounceDelay = 200;
+TaskHandle_t ledTaskHandle;
+
+void IRAM_ATTR updateEncoder()
+{
+    int MSB = digitalRead(encoderPinA);
+    int LSB = digitalRead(encoderPinB);
+    int encoded = (MSB << 1) | LSB;
+    int sum = (lastEncoded << 2) | encoded;
+
+    if (sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011)
+        encoderValue++;
+    if (sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000)
+        encoderValue--;
+
+    lastEncoded = encoded;
+}
+
+void sendData()
+{
+    int encoderDelta = encoderValue - lastEncoderValue;
+    lastEncoderValue = encoderValue;
+
+    // Adjust delta based on the current mode
+    encoderDelta *= (currentMode == FINE) ? fineMultiplier : (currentMode == NORMAL) ? normalMultiplier
+                                                                                     : fastMultiplier;
+
+    data.encoderDelta = encoderDelta;
+    esp_err_t result = esp_now_send(receiverMAC, (uint8_t *)&data, sizeof(data));
+    if (result == ESP_OK)
+    {
+        Serial.print("Sent encoder delta: ");
+        Serial.println(encoderDelta);
+        connectionOK = true;
+    }
+    else
+    {
+        Serial.println("Send failed");
+        connectionOK = false;
+    }
+}
+
+void onSend(const uint8_t *mac_addr, esp_now_send_status_t status)
+{
+    connectionOK = (status == ESP_NOW_SEND_SUCCESS);
+}
+
+void updateLEDs()
+{
+    digitalWrite(ledFine, currentMode == FINE ? HIGH : LOW);
+    digitalWrite(ledNormal, currentMode == NORMAL ? HIGH : LOW);
+    digitalWrite(ledFast, currentMode == FAST ? HIGH : LOW);
+}
+
+void handleTouchSensor()
+{
+    int touchState = digitalRead(touchPin);
+    if (touchState == HIGH && lastTouchState == LOW && millis() - lastTouchTime > debounceDelay)
+    {
+        lastTouchTime = millis();
+        currentMode = static_cast<Mode>((currentMode + 1) % 3);
+        Serial.print("Mode changed to: ");
+        Serial.println(currentMode == FINE ? "FINE" : currentMode == NORMAL ? "NORMAL"
+                                                                            : "FAST");
+        updateLEDs();
+    }
+    lastTouchState = touchState;
+}
+
+void blinkLEDTask(void *param)
+{
+    while (true)
+    {
+        digitalWrite(ledStatus, HIGH);
+        delay(connectionOK ? 75 : 1000);
+        digitalWrite(ledStatus, LOW);
+        delay(connectionOK ? 75 : 1000);
+    }
+}
+
+bool checkConnection()
+{
+    Serial.println("Checking connection to receiver...");
+    connectionOK = false;
+
+    // Allow time for ESP-NOW and the receiver to stabilize
+    delay(1000);
+
+    for (int i = 0; i < 5; i++)
+    {
+        data.encoderDelta = 1; // Send a test delta
+        esp_now_send(receiverMAC, (uint8_t *)&data, sizeof(data));
+        delay(500); // Wait for the receiver to process and respond
+        if (connectionOK)
+        {
+            Serial.println("Receiver connection OK.");
+            return true;
+        }
+    }
+
+    Serial.println("Receiver could not be found. Please ensure:");
+    Serial.println("- Receiver MAC address is correctly set.");
+    Serial.println("- Receiver is powered on and in a ready state.");
+    return false;
+}
+void loopLED()
+{
+    Serial.println("Testing LEDs...");
+    int t = 25;
+    for (int i = 0; i < 3; i++)
+    {
+        digitalWrite(ledStatus, HIGH);
+        delay(t);
+        digitalWrite(ledStatus, LOW);
+        delay(t);
+        digitalWrite(ledFine, HIGH);
+        delay(t);
+        digitalWrite(ledFine, LOW);
+        delay(t);
+        digitalWrite(ledNormal, HIGH);
+        delay(t);
+        digitalWrite(ledNormal, LOW);
+        delay(t);
+        digitalWrite(ledFast, HIGH);
+        delay(t);
+        digitalWrite(ledFast, LOW);
+        delay(t);
+        digitalWrite(ledNormal, HIGH);
+        delay(t);
+        digitalWrite(ledNormal, LOW);
+        delay(t);
+        digitalWrite(ledFine, HIGH);
+        delay(t);
+        digitalWrite(ledFine, LOW);
+        delay(t);
+    }
+
+    Serial.println("LED test complete.");
+}
+
+void setup()
+{
+    Serial.begin(115200);
+    // delay(5000);
+
+    Serial.println("Initializing components...");
+    pinMode(encoderPinA, INPUT);
+    pinMode(encoderPinB, INPUT);
+    attachInterrupt(digitalPinToInterrupt(encoderPinA), updateEncoder, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(encoderPinB), updateEncoder, CHANGE);
+    pinMode(touchPin, INPUT);
+
+    pinMode(ledStatus, OUTPUT);
+    pinMode(ledFine, OUTPUT);
+    pinMode(ledNormal, OUTPUT);
+    pinMode(ledFast, OUTPUT);
+    loopLED();
+    updateLEDs();
+    Serial.println("Components initialized successfully.");
+
+    WiFi.mode(WIFI_STA);
+    Serial.print("MAC Address: ");
+    Serial.println(WiFi.macAddress());
+    esp_wifi_set_promiscuous(true);
+    esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE);
+    esp_wifi_set_promiscuous(false);
+
+    if (esp_now_init() != ESP_OK)
+    {
+        Serial.println("ESP-NOW initialization failed!");
+        return;
+    }
+    Serial.println("ESP-NOW initialized successfully.");
+    esp_now_register_send_cb(onSend);
+
+    esp_now_peer_info_t peerInfo = {};
+    memcpy(peerInfo.peer_addr, receiverMAC, 6);
+    peerInfo.channel = 1;
+    peerInfo.encrypt = false;
+
+    if (esp_now_add_peer(&peerInfo) != ESP_OK)
+    {
+        Serial.println("Failed to add peer.");
+    }
+    else
+    {
+        Serial.println("Peer added successfully.");
+    }
+
+    connectionOK = checkConnection();
+    xTaskCreatePinnedToCore(blinkLEDTask, "BlinkLED", 1000, NULL, 1, &ledTaskHandle, 0);
+
+    sendData(); // Send an initial message to establish feedback and blinking
+}
+
+void loop()
+{
+    handleTouchSensor();
+    sendData();
+    delay(100);
+}

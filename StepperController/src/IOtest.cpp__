@@ -1,0 +1,134 @@
+#include <Arduino.h>
+
+/*
+ * IOtest.cpp - Stepper Motor Control with DRV8825
+ * Author: HB9IIU
+ *
+ * Purpose:
+ * This program is designed as an assembly testing script for hobby builders.
+ * It helps verify if all connections are correctly made for:
+ *  - DRV8825 stepper motor driver (step, direction, enable pins)
+ *  - Status LED for visual feedback
+ *
+ * Functionality:
+ * 1. Blinks the status LED three times at startup to indicate the script is running.
+ * 2. Outputs messages to the serial console to inform the user of the current status.
+ * 3. Rotates the motor one full turn clockwise, pauses, unpowers for 2 seconds,
+ *    then rotates one full turn counterclockwise, repeating the process.
+ *
+ * Angular Resolution:
+ * - The angular resolution is the smallest movement the motor can make per step or microstep.
+ *   It is calculated as:
+ *
+ *   Angular Resolution (degrees) = 360° / (stepsPerRevolution * microstepSetting)
+ *
+ * - For this setup:
+ *   stepsPerRevolution = 200 (standard 1.8° stepper motor)
+ *   microstepSetting = 32 (1/32 microstepping with DRV8825)
+ *
+ *   Angular Resolution = 360° / (200 * 32) = 0.05625° per microstep
+ *
+ * - This means the motor can move in increments as small as 0.05625°.
+ *
+ * Connections:
+ * - Step Pin (stepPin): Connect to the STEP pin on the DRV8825.
+ * - Direction Pin (dirPin): Connect to the DIR pin on the DRV8825.
+ * - Enable Pin (enPin): Connect to the EN pin on the DRV8825.
+ * - Status LED (ledStatus): Connect the positive leg of the LED to pin 23 through a resistor (220Ω recommended), and the negative leg to GND.
+ *
+ * DRV8825 Configuration:
+ * - Set the microstepping to 1/32 using the DIP switches:
+ *   - M0 = HIGH
+ *   - M1 = LOW
+ *   - M2 = HIGH
+ *   Refer to the DRV8825 datasheet or module documentation for detailed setup.
+ */
+
+// LED pin
+const int ledStatus = 23; // STATUS LED
+
+// Define pin connections
+const int stepPin = 18;  // Connect to STEP pin on DRV8825
+const int dirPin = 19;   // Connect to DIR pin on DRV8825
+const int enPin = 21;    // Connect to EN pin on DRV8825
+
+// Define motor parameters
+const int stepsPerRevolution = 200; // Number of steps for one revolution (1.8° per step)
+const int microstepSetting = 32;    // Microstepping (e.g., 16x, adjust based on your DRV8825 configuration)
+const int delayBetweenSteps = 100;  // Microseconds delay for speed control
+
+void rotateMotor(int steps, bool clockwise) {
+  // Set direction
+  digitalWrite(dirPin, clockwise ? HIGH : LOW);
+
+  // Enable the stepper driver
+  digitalWrite(enPin, LOW); // LOW to enable
+
+  // Turn on the status LED
+  digitalWrite(ledStatus, HIGH);
+
+  // Generate pulses for the specified number of steps
+  for (int i = 0; i < steps; i++) {
+    digitalWrite(stepPin, HIGH);
+    delayMicroseconds(delayBetweenSteps);
+    digitalWrite(stepPin, LOW);
+    delayMicroseconds(delayBetweenSteps);
+  }
+
+  // Turn off the status LED
+  digitalWrite(ledStatus, LOW);
+
+  // Disable the stepper driver
+  digitalWrite(enPin, HIGH); // HIGH to disable
+}
+
+void setup() {
+  // Initialize the LED pin as output
+  pinMode(ledStatus, OUTPUT);
+
+  // Initialize the stepper pins as output
+  pinMode(stepPin, OUTPUT);
+  pinMode(dirPin, OUTPUT);
+  pinMode(enPin, OUTPUT);
+
+  // Disable the stepper driver initially
+  digitalWrite(enPin, HIGH); // HIGH to disable
+
+  // Start serial communication for console output
+  Serial.begin(115200);
+  delay(500); // Allow time for the serial monitor to connect
+
+  // Blink the status LED three times to indicate the script is running
+  for (int i = 0; i < 3; i++) {
+    digitalWrite(ledStatus, HIGH);
+    delay(300);
+    digitalWrite(ledStatus, LOW);
+    delay(300);
+  }
+
+  // Inform the user via the serial console
+  Serial.println("IOtest.cpp - Stepper Motor and LED Test Script");
+  Serial.println("Author: HB9IIU");
+  Serial.println("Initialization complete. Starting test loop...");
+}
+
+void loop() {
+  // Calculate total steps for one full revolution
+  int totalSteps = stepsPerRevolution * microstepSetting;
+
+  // Inform the user that the motor will rotate clockwise
+  Serial.println("Rotating one full turn clockwise...");
+  rotateMotor(totalSteps, true);
+
+  // Inform the user that the motor is unpowered
+  Serial.println("Motor unpowered. Pausing for 2 seconds...");
+  delay(2000); // Unpower for 2 seconds
+
+  // Inform the user that the motor will rotate counterclockwise
+  Serial.println("Rotating one full turn counterclockwise...");
+  rotateMotor(totalSteps, false);
+
+  // Inform the user that the motor is unpowered
+  Serial.println("Motor unpowered. Pausing for 2 seconds...");
+  delay(2000); // Unpower for 2 seconds
+}
