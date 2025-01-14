@@ -110,5 +110,6 @@ ESP32-Stepper-Controller
 ---
 
 ## **Video Demonstration**
-[Watch the demonstration on YouTube](https://youtu.be/UbahWgo1rvE)  
+[![Watch the demonstration on YouTube](https://img.youtube.com/vi/UbahWgo1rvE/0.jpg)](https://youtu.be/UbahWgo1rvE)
+
 *A video showcasing the project in action.*
