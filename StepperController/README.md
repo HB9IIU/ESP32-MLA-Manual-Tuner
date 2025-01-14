@@ -3,7 +3,7 @@
 This folder contains the code for the **Receiver ESP32**, which controls the stepper motor.  
 
 ### Quick Start  
-For detailed step-by-step instructions, please refer to the main project documentation in the **`Documentation`** folder or the project root README.  
+For detailed step-by-step instructions, please refer to the main project page.  
 
 ### Included Files  
 - **`FindMACAddress.cpp__`**: Script to find the MAC address of the receiver ESP32.  

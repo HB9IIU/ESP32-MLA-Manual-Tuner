@@ -3,7 +3,7 @@
 This folder contains the code for the **Sender ESP32**, which is attached to the rotary encoder.  
 
 ### Quick Start  
-For detailed step-by-step instructions, please refer to the main project documentation in the **`Documentation`** folder or the project root README.  
+For detailed step-by-step instructions, please refer to the main project page.  
 
 ### Included Files  
 - **`IOTest.cpp__`**: Test script for verifying connections to the rotary encoder and LEDs.  
