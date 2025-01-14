@@ -1,4 +1,4 @@
-# **ESP32 Remote Stepper Motor Controller for Magnetic Loop Antennasr**
+# **ESP32 Remote Stepper Motor Controller for Magnetic Loop Antennas Capacitor Tuning**
 
 ## **Overall Description**
 This project enables the remote control of a stepper motor using two ESP32 devices via **ESP-NOW** communication.  
