@@ -1,4 +1,4 @@
-# **ESP32 Stepper Motor and Rotary Encoder Controller**
+# **ESP32 Remote Stepper Motor Controller for Magnetic Loop Antennasr**
 
 ## **Overall Description**
 This project enables the remote control of a stepper motor using two ESP32 devices via **ESP-NOW** communication.  
