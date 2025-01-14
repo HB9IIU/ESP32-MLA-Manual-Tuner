@@ -59,9 +59,23 @@ All necessary GPIO pin mappings and configuration details are documented in each
 ```
 ESP32-Stepper-Controller
 ├── 3DprintingRelated/            # STL files for 3D printing the enclosure
+│   ├── 3Drenderings/             # Rendered images of the enclosure design
+│   │   ├── rend1.png
+│   │   ├── rend2.png
+│   │   ├── rend3.png
+│   │   ├── rend4.png
+│   │   └── rend5.png
+│   ├── STLprintingFiles/         # STL files for 3D printing
+│   │   ├── BOTTOM.stl
+│   │   ├── FEETS.stl
+│   │   └── TOP.stl
+│   └── Fusion360designFile.f3d   # Modifiable Fusion 360 design file
 ├── Documentation/                # Component details and sources
+│   ├── Pictures/
+│   │   ├── housingClosed.png     # Photo of the closed housing
+│   │   └── housingOpen.png       # Photo of the open housing with components
 │   ├── ESP32 Manual MLA...pdf    # Documentation for the ESP32 MLA components
-│   ├── Rotary Encoder.pdf        # Rotary Encoder details and source
+│   └── Rotary Encoder.pdf        # Rotary Encoder details and source
 ├── RotaryEncoderController/      # Code for the Sender ESP32
 │   ├── src/
 │   │   ├── IOTest.cpp__          # Test script for rotary encoder connections
