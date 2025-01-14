@@ -107,7 +107,6 @@ ESP32-Stepper-Controller
   <img src="Documentation/Pictures/housingOpen.png" alt="Open Housing" width="45%" />
 </p>
 
-*Left: Closed housing. Right: Open housing with components visible.*
 ---
 
 ## **Video Demonstration**
