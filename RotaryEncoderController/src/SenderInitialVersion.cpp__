@@ -34,7 +34,9 @@
  * - Ensure the receiver ESP32 is powered on and running the appropriate receiver code.
  */
 
-const uint8_t receiverMAC[] = {0xA8, 0x42, 0xE3, 0x4B, 0x0E, 0xF0}; // Replace with actual receiver MAC
+//const uint8_t receiverMAC[] = {0xA8, 0x42, 0xE3, 0x4B, 0x0E, 0xF0}; // BIG LOOP Replace with actual receiver MAC
+const uint8_t receiverMAC[] = {0x9C, 0x9C, 0x1F, 0x1E, 0xE0, 0x54}; // Replace with actual receiver MAC
+
 const int encoderPinA = 32;
 const int encoderPinB = 33;
 const int touchPin = 39;
